@@ -1,4 +1,3 @@
-
 import numpy as np
 from PIL import Image
 from pathlib import Path
@@ -9,25 +8,43 @@ from torchvision import transforms
 import os
 import glob
 
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
 
-data = []
+class MyDataset(torch.utils.data.Dataset):
 
-path_ = 'Users/himamura6/Documents/GitHub/Wearing-a-mask-or-not' 
+    def __init__(self, dir_path,transform=None):
+        
+        super().__init__()
+        
+        self.dir_path = dir_path
+        self.transform = transform
+        self.image_paths = [str(p) for p in Path(self.dir_path).glob("**/*.png")]
+        self.len = len(self.image_paths)
+        
+    def __len__(self):
+        return self.len
+    
+    def __getitem__(self, index):
+        p = self.image_paths[index]
 
-for num in os.listdir(path_):
-    for img_path in os.listdir(f'{path_}/{num}')[:100]:
-        data.append([f'{path_}/{num}/{img_path}', img_path, num, num])
+        image = Image.open(p)
+        image = image.convert("RGB")
+        image = self.transform(image)  
 
-df = pd.DataFrame(data, columns=['path', 'filename','category', 'label'])
+        
+        # ラベル (「1」: 1, 「2」: 2)
+        label = p.split("\\")[4]
+        label = 1 if label == "1" else 2
+        
+        return image, label
+    
+transform = transforms.Compose([transforms.ToTensor(), 
+                                  transforms.Resize(size=(64, 64)),
+                              transforms.Normalize(
+                                  [0.5, 0.5, 0.5],  
+                                  [0.5, 0.5, 0.5], 
+                               )]) 
 
-df.head()
 
-plt.imshow(img_transformed.numpy().transpose((1, 2, 0)))
-plt.show()
-class Wearing_Dataset_val(torch.utils.data.Dataset):
-   def __init__(self, df, features, labels):
-        self.features_values = df[features].values
-        self.labels = df[labels].values
+dir_path = 'mask'
+dataset = MyDataset(dir_path,transform)
+train_dataset, val_dataset = torch.utils.data.random_split(dataset=dataset, lengths=[24, 8], generator=torch.Generator().manual_seed(42))
